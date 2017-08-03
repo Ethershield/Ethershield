@@ -20,7 +20,7 @@ contract EthershieldICO is Ownable {
       bool public crowdsalestarted = false;
       uint constant minimumAMT = 100 finney; 
       /* 120000000000000000000000000 = 120,000,000ETS*/
-      uint public constant MAX_CAP = 5 ether;
+      uint public constant MAX_CAP = 40000 ether;
           uint256 public ContributionAmt = 0;
   
           /* Crowdsale start time */
@@ -28,7 +28,7 @@ contract EthershieldICO is Ownable {
     	/* Crowdsale end time */
     	uint public endTime;
      	/* Is crowdsale still on going */
-    	uint private constant CROWDSALE_PERIOD = 1 days;
+    	uint private constant CROWDSALE_PERIOD = 30 days;
       
       
       /*1 ether = 3000ETS*/ 
