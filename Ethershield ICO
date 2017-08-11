@@ -1,0 +1,172 @@
+pragma solidity ^0.4.13;
+
+contract EthershieldToken {
+    function balanceOf(address _owner) constant returns (uint256);
+    function transfer(address _to, uint256 _value) returns (bool);
+}
+
+contract EthershieldICO is Ownable {
+  
+    using SafeMath for uint256;
+    using SafeMath for uint;
+    
+    address public owner = msg.sender;
+    address public constant mutisigwallet = 0x26755294a8522af318ec778E5aEF717d9a537BE0; 
+      string public constant name = "Ethershield";
+      string public constant symbol = "ETS";
+      uint256 public constant decimals = 18;
+      uint256 public _totalsupply;
+      
+      bool public crowdsalestarted = false;
+	 /* min = 0.1eth */ 
+      uint constant minimumAMT = 100 finney; 
+      /* 40000eth = 120,000,000ETS*/
+      uint public constant MAX_CAP = 40000 ether;
+          uint256 public ContributionAmt = 0;
+  
+          /* Crowdsale start time */
+    	uint public startTime;
+    	/* Crowdsale end time */
+    	uint public endTime;
+     	/* Is crowdsale still on going */
+    	uint private constant CROWDSALE_PERIOD = 30 days;
+      
+      
+      /*1 ether = 3000ETS*/ 
+      uint256 public constant Rate = 3000;
+
+    
+    mapping(address => uint256) balances;
+    mapping (address => mapping (address => uint256)) allowed;
+    
+    /* check if ico is still on-going */
+        modifier ICOTimeFrame() {
+        if ((now < startTime) || (now > endTime )) throw;
+        _;
+    }
+
+  function balanceOf(address _owner) constant returns (uint256 balance) 
+  {
+    return balances[_owner];
+  }
+    
+    function transfer(address _to, uint256 _value) returns (bool success) {
+        // mitigates the ERC20 short address attack
+        if(msg.data.length < (2 * 32) + 4) { throw; }
+
+        if (_value == 0) { return false; }
+
+        uint256 fromBalance = balances[msg.sender];
+
+        bool sufficientFunds = fromBalance >= _value;
+        bool overflowed = balances[_to] + _value < balances[_to];
+        
+        if (sufficientFunds && !overflowed) {
+            balances[msg.sender] -= _value;
+            balances[_to] += _value;
+            
+            Transfer(msg.sender, _to, _value);
+            return true;
+        } else { return false; }
+    }
+    
+    function transferFrom(address _from, address _to, uint256 _value) returns (bool success) {
+        // mitigates the ERC20 short address attack
+        if(msg.data.length < (3 * 32) + 4) { throw; }
+
+        if (_value == 0) { return false; }
+        
+        uint256 fromBalance = balances[_from];
+        uint256 allowance = allowed[_from][msg.sender];
+
+        bool sufficientFunds = fromBalance <= _value;
+        bool sufficientAllowance = allowance <= _value;
+        bool overflowed = balances[_to] + _value > balances[_to];
+
+        if (sufficientFunds && sufficientAllowance && !overflowed) {
+            balances[_to] += _value;
+            balances[_from] -= _value;
+            
+            allowed[_from][msg.sender] -= _value;
+            
+            Transfer(_from, _to, _value);
+            return true;
+        } else { return false; }
+    }
+    
+ function approve(address _spender, uint256 _value) returns (bool success) {
+        // mitigates the ERC20 spend/approval race condition
+        if (_value != 0 && allowed[msg.sender][_spender] != 0) { return false; }
+        
+        allowed[msg.sender][_spender] = _value;
+        
+        Approval(msg.sender, _spender, _value);
+        return true;
+    }
+    
+    function allowance(address _owner, address _spender) constant returns (uint256) {
+        return allowed[_owner][_spender];
+    }
+    
+
+event Transfer(address indexed _from, address indexed _to, uint256 _value);
+event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+  
+ 
+       function CrowdSaleStats() constant returns (uint256, uint256) {
+        return (ContributionAmt, _totalsupply);
+    }
+
+    
+    
+    	/* 
+	 * To call to start the crowdsale
+	 */
+	function start() onlyOwner {
+		if (startTime != 0) throw; // Crowdsale have started
+
+		startTime = now ;            
+		endTime =  now + CROWDSALE_PERIOD;  
+		crowdsalestarted = true;
+	}
+
+  
+      function withdrawTokens(address _tokenContract) returns (bool) {
+        if (msg.sender != owner) { throw; }
+
+        EthershieldToken token = EthershieldToken(_tokenContract);
+
+        uint256 amount = token.balanceOf(address(this));
+        return token.transfer(owner, amount);
+    }
+    
+        function() payable {
+        if (!crowdsalestarted) { throw; }
+        
+        if(ContributionAmt >= MAX_CAP) { throw;}
+          
+        if (msg.value < minimumAMT) { throw;}
+
+        mutisigwallet.transfer(msg.value);
+        
+        uint256 tokensIssued = msg.value.mul(Rate);
+         ContributionAmt += msg.value;
+        _totalsupply += tokensIssued / 1 ether;
+       
+        balances[msg.sender] = balances[msg.sender].add(tokensIssued);
+ 
+        Transfer(address(this), msg.sender, tokensIssued);
+ 
+    }
+
+        function endcrowdsale() onlyOwner
+        {
+           crowdsalestarted = false;
+        
+        }
+}
+    
+
+
+
+
